@@ -12,12 +12,25 @@ GOVER     := $(shell go version | awk '{ print substr($$3, 3) }' | tr "." " ")
 VER_JUDGE := $(shell if [ $(word 1,$(GOVER)) -eq 1 ] && [ $(word 2,$(GOVER)) -le 10 ]; then echo 0; else echo 1; fi)
 
 DB_CONFIG := $(NAME).sql/connect.toml
-DB_USER := $(shell cat $(DB_CONFIG) | grep user | sed -e 's/user = //' -e 's/"//g')
-DB_PASS := $(shell cat $(DB_CONFIG) | grep password | sed -e 's/password = //' -e 's/"//g')
-DB_HOST := $(shell cat $(DB_CONFIG) | grep server | sed -e 's/server = //' -e 's/"//g')
-DB_PORT := $(shell cat $(DB_CONFIG) | grep port | sed -e 's/port = //')
-DB_NAME := $(shell cat $(DB_CONFIG) | grep name | sed -e 's/name = \(.*\) \#.*/\1/' -e 's/"//g')
-DB_URL  := "mysql://$(DB_USER):$(DB_PASS)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)?tls=false"
+DB_TYPE   := $(shell grep 'db_type' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+DB_USER   := $(shell grep 'user' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+DB_PASS   := $(shell grep 'password' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+DB_HOST   := $(shell grep 'server' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+DB_PORT   := $(shell grep 'port' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+DB_NAME   := $(shell grep 'name' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+SSL_MODE  := $(shell grep 'sslmode' $(DB_CONFIG) 2>/dev/null | grep -v '^[[:space:]]*#' | head -n 1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+
+ifeq ($(SSL_MODE),)
+  SSL_MODE := disable
+endif
+
+ifeq ($(DB_TYPE),postgres)
+  DB_URL       := "postgres://$(DB_USER):$(DB_PASS)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(SSL_MODE)"
+  MIGRATE_PATH := migrations/postgres
+else
+  DB_URL       := "mysql://$(DB_USER):$(DB_PASS)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)?tls=false"
+  MIGRATE_PATH := migrations/mysql
+endif
 
 .PHONY: run
 run: build
@@ -41,11 +54,11 @@ build: $(SRCS)
 
 .PHONY: db
 db:
-	@migrate -database $(DB_URL) -path migrations up
+	@migrate -database $(DB_URL) -path $(MIGRATE_PATH) up
 
 .PHONY: db-down
 db-down:
-	@migrate -database $(DB_URL) -path migrations down
+	@migrate -database $(DB_URL) -path $(MIGRATE_PATH) down
 
 .PHONY: install
 install:
