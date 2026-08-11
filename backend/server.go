@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 
 	"gocm/cert"
@@ -87,7 +86,7 @@ func SetupRouter() *gin.Engine {
 
 // 新規CA認証局を作成します
 func newCA(c *gin.Context) {
-	obj, err := uuid.NewRandom()
+	caid, err := cert.GenerateBase32ID()
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -97,8 +96,6 @@ func newCA(c *gin.Context) {
 		c.Abort()
 		return
 	}
-
-	id := obj.String()
 	password, err := cert.GeneratePassword()
 
 	if err != nil {
@@ -122,7 +119,7 @@ func newCA(c *gin.Context) {
 	}
 
 	cainfo := models.TranCAInfo{
-		Id:       id,
+		CAID:     caid,
 		Password: hash,
 		Created:  getNowString(),
 	}
@@ -134,13 +131,14 @@ func newCA(c *gin.Context) {
 	}
 
 	if err := repo.InsertCAInfo(cainfo); err != nil {
+		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, errFailedOperateData)
 		c.Abort()
 		return
 	}
 
 	c.JSON(http.StatusCreated, models.NewCAResponse{
-		CAID:     id,
+		CAID:     caid,
 		Password: password,
 	})
 }
@@ -158,7 +156,7 @@ func getCAInfo(c *gin.Context) {
 		return
 	}
 
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	certs, err := repo.GetCASummary(caid)
 
 	if err != nil {
@@ -214,7 +212,7 @@ func destroyCA(c *gin.Context) {
 		return
 	}
 
-	if err := repo.DestroyCA(cainfo.Id, cainfo); err != nil {
+	if err := repo.DestroyCA(cainfo.CAID, cainfo); err != nil {
 		c.JSON(http.StatusInternalServerError, errFailedOperateData)
 		c.Abort()
 		return
@@ -238,7 +236,7 @@ func auditAllCerts(c *gin.Context) {
 		return
 	}
 
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	certs, err := repo.AuditCertData(caid)
 
 	if err != nil {
@@ -304,7 +302,7 @@ func getCACert(c *gin.Context) {
 		return
 	}
 
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	cadata, err := repo.GetCACerts(caid)
 
 	if err != nil {
@@ -423,10 +421,11 @@ func updateClientCert(c *gin.Context) {
 
 // 認証局の情報を取得します
 func getCAInfoData(c *gin.Context) (models.TranCAInfo, bool) {
-	id_prm := c.Param("id")
-	cainfo, err := repo.GetCAInfo(id_prm)
+	caidprm := c.Param("id")
+	cainfo, err := repo.GetCAInfo(caidprm)
 
 	if err != nil {
+		fmt.Println(err)
 		c.JSON(http.StatusNotFound, errInvalidURL)
 		c.Abort()
 		return models.TranCAInfo{}, false
@@ -469,7 +468,7 @@ func listCertData(c *gin.Context, certType cert.CertType) {
 		CommonName: common_name,
 	}
 
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	var data []models.TranCertificate
 	var err error
 
@@ -534,7 +533,7 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 		CommonName: "",
 	}
 
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	var tran_data []models.TranCertificate
 	var not_found ErrorMessage
 
@@ -648,7 +647,7 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	// 有効なCA証明書の取得を試みます
 	// -----
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	cadata, err := repo.GetCACerts(caid)
 
 	if err != nil {
@@ -876,7 +875,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	// 有効なCA証明書の取得を試みます
 	// -----
-	caid := cainfo.Id
+	caid := cainfo.CAID
 	cadata, err := repo.GetCACerts(caid)
 
 	if err != nil {

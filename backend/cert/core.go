@@ -5,11 +5,13 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base32"
 	"encoding/pem"
 	"errors"
 	"math/big"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"software.sslmate.com/src/go-pkcs12"
@@ -58,6 +60,18 @@ const (
 	SERVER            CertType = "SERVER"
 	CLIENT            CertType = "CLIENT"
 )
+
+// GenerateBase32ID: 15バイトの乱数から24文字のBase32文字列を生成します
+func GenerateBase32ID() (string, error) {
+	b := make([]byte, 15)
+
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	
+	encoder := base32.StdEncoding.WithPadding(base32.NoPadding)
+	return strings.ToLower(encoder.EncodeToString(b)), nil
+}
 
 // CA証明書を発行します
 func CreateCACert(req *CreateCACertRequest) (*CertData, error) {

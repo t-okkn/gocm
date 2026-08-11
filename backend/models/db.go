@@ -17,14 +17,16 @@ type MstrCertType struct {
 }
 
 type TranCAInfo struct {
-	Id       string `db:"id, primarykey" json:"id"`
+	Id       int64  `db:"id, primarykey, autoincrement" json:"-"`
+	CAID     string `db:"ca_id" json:"id"`
 	Password string `db:"password" json:"password"`
 	Created  string `db:"created" json:"created"`
 }
 
 type TranCertificate struct {
-	CAID           string  `db:"ca_id, primarykey" json:"ca_id"`
-	Serial         uint32  `db:"serial, primarykey" json:"serial"`
+	Id             int64   `db:"id, primarykey, autoincrement" json:"-"`
+	CAID           string  `db:"ca_id" json:"ca_id"`
+	Serial         uint32  `db:"serial" json:"serial"`
 	CommonName     string  `db:"common_name" json:"common_name"`
 	PrivateKey     string  `db:"private_key" json:"private_key"`
 	CertType       string  `db:"cert_type" json:"cert_type"`
@@ -37,8 +39,9 @@ type TranCertificate struct {
 
 // 証明書データ・秘密鍵データがない軽量版データのレスポンス
 type SlimCertData struct {
-	CAID           string  `db:"ca_id, primarykey" json:"ca_id"`
-	Serial         uint32  `db:"serial, primarykey" json:"serial"`
+	Id             int64   `db:"id, primarykey, autoincrement" json:"-"`
+	CAID           string  `db:"ca_id" json:"ca_id"`
+	Serial         uint32  `db:"serial" json:"serial"`
 	CommonName     string  `db:"common_name" json:"common_name"`
 	CertType       string  `db:"cert_type" json:"cert_type"`
 	Created        string  `db:"created" json:"created"`

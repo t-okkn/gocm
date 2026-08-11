@@ -1,6 +1,6 @@
 SELECT
-  `id`,
+  `ca_id`,
   `password`,
   `created`
 FROM T_CAINFO
-WHERE `id` = :id;
+WHERE `ca_id` = :id;

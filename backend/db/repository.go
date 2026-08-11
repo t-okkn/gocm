@@ -18,10 +18,10 @@ func NewRepository(dm *gorp.DbMap) *Repository {
 }
 
 // CA認証局の情報を取得します
-func (r *Repository) GetCAInfo(id string) (models.TranCAInfo, error) {
+func (r *Repository) GetCAInfo(caid string) (models.TranCAInfo, error) {
 	var result models.TranCAInfo
 	query := GetSQL("get-cainfo", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]interface{}{"id": caid}
 
 	if err := r.SelectOne(&result, query, val); err != nil {
 		return models.TranCAInfo{}, err

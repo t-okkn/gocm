@@ -7,7 +7,6 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-gorp/gorp v2.2.0+incompatible
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.12.3
 	golang.org/x/crypto v0.54.0
 	software.sslmate.com/src/go-pkcs12 v0.7.3
