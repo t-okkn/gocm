@@ -1,2 +1,2 @@
-# gocm-api
-Golang Certificate Manager API
+# gocm
+Golang Certificate Manager
