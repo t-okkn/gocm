@@ -15,6 +15,7 @@ import (
 	"github.com/go-gorp/gorp"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 
 	"gocm-api/cert"
 	"gocm-api/db"
@@ -1210,6 +1211,16 @@ func initDB() *db.Repository {
 	case "mysql":
 		op, _ := sql.Open(driver, dsn)
 		dial := gorp.MySQLDialect{Engine: "InnoDB", Encoding: "utf8mb4"}
+
+		dbmap = &gorp.DbMap{Db: op, Dialect: dial, ExpandSliceArgs: true}
+		models.MapStructsToTables(dbmap)
+	case "postgres":
+		op, err := sql.Open(driver, dsn)
+		if err != nil {
+			fmt.Println("E001 :", err)
+			return nil
+		}
+		dial := gorp.PostgresDialect{}
 
 		dbmap = &gorp.DbMap{Db: op, Dialect: dial, ExpandSliceArgs: true}
 		models.MapStructsToTables(dbmap)

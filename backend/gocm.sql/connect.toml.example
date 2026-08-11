@@ -1,15 +1,23 @@
+# db_type: "mysql" または "postgres"
 db_type = "mysql"
 
 [database]
-user = "YOUR_DB_USER"
+server   = "localhost"
+port     = 3306           # MySQL: 3306 / PostgreSQL: 5432
+user     = "YOUR_DB_USER"
 password = "YOUR_DB_PASSWORD"
-server = "localhost"
-port = 3306
-name = "localca" # database名
+name     = "localca"     # データベース名
 
-  [database.tls]
-  disable = true
-  caonly = true
-  ca = ""
-  cert = ""
-  key = ""
+# --- TLS / SSL 共通設定 ---
+[database.tls]
+# sslmode:
+#   - "disable"     : SSLを使用しない
+#   - "require"     : SSL接続を行う (暗号化のみ/証明書検証なし)
+#   - "verify-ca"   : CA証明書による検証を行う
+#   - "verify-full" : CA証明書 + ホスト名検証を行う
+sslmode = "disable"
+
+# 各種証明書・鍵のファイルパス (使用しない場合は空文字)
+ca   = "" # CA証明書のパス
+cert = "" # クライアント証明書のパス
+key  = "" # クライアント秘密鍵のパス

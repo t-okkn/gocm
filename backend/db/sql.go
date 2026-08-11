@@ -5,14 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/BurntSushi/toml"
+	"github.com/go-sql-driver/mysql"
 )
 
 type connectConfig struct {
@@ -30,11 +30,10 @@ type databaseConfig struct {
 }
 
 type tlsInfo struct {
-	IsDisable bool   `toml:"disable"`
-	IsCaOnly  bool   `toml:"caonly"`
-	CA        string `toml:"ca"`
-	Cert      string `toml:"cert"`
-	Key       string `toml:"key"`
+	SSLMode string `toml:"sslmode"`
+	CA      string `toml:"ca"`
+	Cert    string `toml:"cert"`
+	Key     string `toml:"key"`
 }
 
 // configファイルからデータソース名を取得します
@@ -57,18 +56,40 @@ func GetDataSourceName() (string, string, error) {
 	switch conf.Type {
 	case "mysql":
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-		                  conf.DB.User,
-		                  conf.DB.Password,
-		                  conf.DB.Server,
-		                  conf.DB.Port,
-		                  conf.DB.DBName)
+			conf.DB.User,
+			conf.DB.Password,
+			conf.DB.Server,
+			conf.DB.Port,
+			conf.DB.DBName)
 
-		if !conf.DB.TLS.IsDisable {
+		if conf.DB.TLS.SSLMode != "" && conf.DB.TLS.SSLMode != "disable" {
 			if err := registerMysqlTLSConfig(conf.DB.TLS); err != nil {
 				return "", "", err
 			}
 
 			dsn += "?tls=custom"
+		}
+
+	case "postgres":
+		sslmode := conf.DB.TLS.SSLMode
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			conf.DB.Server,
+			conf.DB.Port,
+			conf.DB.User,
+			conf.DB.Password,
+			conf.DB.DBName,
+			sslmode)
+
+		if sslmode != "disable" {
+			if conf.DB.TLS.CA != "" {
+				dsn += fmt.Sprintf(" sslrootcert=%s", conf.DB.TLS.CA)
+			}
+			if conf.DB.TLS.Cert != "" && conf.DB.TLS.Key != "" {
+				dsn += fmt.Sprintf(" sslcert=%s sslkey=%s", conf.DB.TLS.Cert, conf.DB.TLS.Key)
+			}
 		}
 	}
 
@@ -82,8 +103,13 @@ func GetSQL(name string, req interface{}) string {
 		return ""
 	}
 
+	dbType, _, err := GetDataSourceName()
+	if err != nil {
+		return ""
+	}
+
 	var buf bytes.Buffer
-	filename := fmt.Sprintf("%s/%s.sql", dir, name)
+	filename := filepath.Join(dir, dbType, fmt.Sprintf("%s.sql", name))
 
 	t := template.Must(template.ParseFiles(filename))
 	t.Execute(&buf, req)
@@ -103,37 +129,36 @@ func getDirName() string {
 
 // MySQLの接続情報にTLS情報を付与します
 func registerMysqlTLSConfig(tlsi tlsInfo) error {
-	rootCertPool := x509.NewCertPool()
+	tlsConfig := &tls.Config{}
 
-	pem, err := ioutil.ReadFile(tlsi.CA)
-	if err != nil {
-		return err
+	switch tlsi.SSLMode {
+	case "require":
+		tlsConfig.InsecureSkipVerify = true
+	case "verify-ca", "verify-full":
+		if tlsi.CA != "" {
+			rootCertPool := x509.NewCertPool()
+			pem, err := ioutil.ReadFile(tlsi.CA)
+			if err != nil {
+				return err
+			}
+			if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+				return errors.New("CA証明書の追加に失敗しました")
+			}
+			tlsConfig.RootCAs = rootCertPool
+		}
+		if tlsi.SSLMode == "verify-ca" {
+			tlsConfig.InsecureSkipVerify = true
+		}
 	}
 
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		e := errors.New("CA証明書の追加に失敗しました")
-		return e
-	}
-
-	if tlsi.IsCaOnly {
-		mysql.RegisterTLSConfig("custom", &tls.Config{
-			ClientCAs: rootCertPool,
-		})
-
-	} else {
+	if tlsi.Cert != "" && tlsi.Key != "" {
 		certs, err := tls.LoadX509KeyPair(tlsi.Cert, tlsi.Key)
 		if err != nil {
 			return err
 		}
-
-		clientCert := make([]tls.Certificate, 0, 1)
-		clientCert = append(clientCert, certs)
-
-		mysql.RegisterTLSConfig("custom", &tls.Config{
-			RootCAs:      rootCertPool,
-			Certificates: clientCert,
-		})
+		tlsConfig.Certificates = []tls.Certificate{certs}
 	}
 
+	mysql.RegisterTLSConfig("custom", tlsConfig)
 	return nil
 }

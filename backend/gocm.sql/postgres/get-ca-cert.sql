@@ -1,0 +1,16 @@
+SELECT
+  ca_id,
+  serial,
+  common_name,
+  private_key,
+  cert_type,
+  cert_data,
+  created,
+  expiration_date,
+  is_revoked::int AS is_revoked,
+  revoked
+FROM T_CERTIFICATE
+WHERE ca_id = :id
+  AND cert_type = 'CA'
+  AND is_revoked = FALSE
+  AND expiration_date::timestamp >= CURRENT_TIMESTAMP;

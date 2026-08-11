@@ -8,6 +8,7 @@ require (
 	github.com/go-gorp/gorp v2.2.0+incompatible
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.3.0
+	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.10.0
 	software.sslmate.com/src/go-pkcs12 v0.2.0
 )
