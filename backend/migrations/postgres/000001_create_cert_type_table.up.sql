@@ -3,5 +3,9 @@ CREATE TABLE IF NOT EXISTS m_cert_type (
   PRIMARY KEY(cert_type)
 );
 
-INSERT INTO m_cert_type (cert_type) VALUES ('CA'), ('SERVER'), ('CLIENT')
+INSERT INTO m_cert_type (cert_type) VALUES
+  ('UNKNOWN'),
+  ('CA'),
+  ('SERVER'),
+  ('CLIENT')
 ON CONFLICT (cert_type) DO NOTHING;
