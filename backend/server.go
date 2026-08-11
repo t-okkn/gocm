@@ -179,7 +179,7 @@ func getCAInfo(c *gin.Context) {
 	for _, cert := range certs {
 		expire := getParsedTime(cert.ExpirationDate)
 
-		if cert.IsRevoked == 1 || expire.Before(time.Now()) {
+		if bool(cert.IsRevoked) || expire.Before(time.Now()) {
 			response.InvalidCerts = append(response.InvalidCerts, cert)
 
 		} else {
@@ -1052,7 +1052,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	}
 
 	// 更新前のデータは破棄扱い
-	old_data.IsRevoked = 1
+	old_data.IsRevoked = true
 	old_data.Revoked = getNowString()
 
 	if err := repo.UpdateCert(old_data, new_data); err != nil {
@@ -1213,18 +1213,15 @@ func initDB() *db.Repository {
 		dial := gorp.MySQLDialect{Engine: "InnoDB", Encoding: "utf8mb4"}
 
 		dbmap = &gorp.DbMap{Db: op, Dialect: dial, ExpandSliceArgs: true}
-		models.MapStructsToTables(dbmap)
+
 	case "postgres":
-		op, err := sql.Open(driver, dsn)
-		if err != nil {
-			fmt.Println("E001 :", err)
-			return nil
-		}
+		op, _ := sql.Open(driver, dsn)
 		dial := gorp.PostgresDialect{}
 
 		dbmap = &gorp.DbMap{Db: op, Dialect: dial, ExpandSliceArgs: true}
-		models.MapStructsToTables(dbmap)
 	}
+
+	models.MapStructsToTables(driver, dbmap)
 
 	return db.NewRepository(dbmap)
 }

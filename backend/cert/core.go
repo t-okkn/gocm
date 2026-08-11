@@ -361,7 +361,7 @@ func (c *CertData) TranCertificate(
 		CertData:       c.PemData,
 		Created:        c.Created,
 		ExpirationDate: c.ExpirationDate,
-		IsRevoked:      0,
+		IsRevoked:      false,
 		Revoked:        "",
 	}
 

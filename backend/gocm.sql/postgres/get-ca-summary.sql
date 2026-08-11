@@ -5,7 +5,7 @@ SELECT
   cert_type,
   created,
   expiration_date,
-  is_revoked::int AS is_revoked,
+  is_revoked,
   revoked
 FROM t_certificate
 WHERE ca_id = :id;
