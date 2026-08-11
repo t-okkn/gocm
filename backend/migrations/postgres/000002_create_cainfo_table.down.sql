@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS t_certinfo;
+DROP TABLE IF EXISTS t_cainfo;
