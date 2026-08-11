@@ -17,9 +17,9 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 
-	"gocm-api/cert"
-	"gocm-api/db"
-	"gocm-api/models"
+	"gocm/cert"
+	"gocm/db"
+	"gocm/models"
 )
 
 const (

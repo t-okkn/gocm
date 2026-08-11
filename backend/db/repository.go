@@ -3,7 +3,7 @@ package db
 import (
 	"errors"
 
-	"gocm-api/models"
+	"gocm/models"
 
 	"github.com/go-gorp/gorp"
 )

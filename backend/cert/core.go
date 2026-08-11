@@ -14,7 +14,7 @@ import (
 
 	"software.sslmate.com/src/go-pkcs12"
 
-	"gocm-api/models"
+	"gocm/models"
 )
 
 type CertType string
