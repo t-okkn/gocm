@@ -1,7 +1,7 @@
-CREATE TABLE IF NOT EXISTS M_CERT_TYPE (
+CREATE TABLE IF NOT EXISTS m_cert_type (
   cert_type VARCHAR(10) NOT NULL DEFAULT '',
   PRIMARY KEY(cert_type)
 );
 
-INSERT INTO M_CERT_TYPE (cert_type) VALUES ('CA'), ('SERVER'), ('CLIENT')
+INSERT INTO m_cert_type (cert_type) VALUES ('CA'), ('SERVER'), ('CLIENT')
 ON CONFLICT (cert_type) DO NOTHING;

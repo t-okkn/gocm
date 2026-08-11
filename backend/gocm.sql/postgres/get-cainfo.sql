@@ -2,5 +2,5 @@ SELECT
   id,
   password,
   created
-FROM T_CAINFO
+FROM t_cainfo
 WHERE id = :id;

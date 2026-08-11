@@ -1,4 +1,4 @@
 SELECT
   COALESCE(MAX(serial), 0)
-FROM T_CERTIFICATE
+FROM t_certificate
 WHERE ca_id = :id;

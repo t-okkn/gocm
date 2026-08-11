@@ -9,7 +9,7 @@ SELECT
   expiration_date,
   is_revoked::int AS is_revoked,
   revoked
-FROM T_CERTIFICATE
+FROM t_certificate
 WHERE ca_id = :id
   AND cert_type = 'SERVER'
   {{if ne .Serial 0 -}}

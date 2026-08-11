@@ -7,7 +7,7 @@ SELECT
   expiration_date,
   is_revoked::int AS is_revoked,
   revoked
-FROM T_CERTIFICATE
+FROM t_certificate
 WHERE ca_id = :id
   AND is_revoked = FALSE
   AND expiration_date::timestamp >= CURRENT_TIMESTAMP;
