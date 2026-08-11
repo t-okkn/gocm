@@ -1,4 +1,4 @@
-NAME     := gocm-api
+NAME     := gocm
 VERSION  := v0.1.0
 REVISION := $(shell git rev-parse --short HEAD)
 

@@ -26,3 +26,7 @@ bin/
 .idea
 .secret
 
+# backend 配下のExampleを除いて connect.toml は階層問わずすべて無視
+backend/**/connect.toml
+!backend/**/connect.toml.example
+

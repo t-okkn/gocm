@@ -1,11 +1,11 @@
 db_type = "mysql"
 
 [database]
-user = ""
-password = ""
+user = "YOUR_DB_USER"
+password = "YOUR_DB_PASSWORD"
 server = "localhost"
 port = 3306
-name = "" # database名
+name = "localca" # database名
 
   [database.tls]
   disable = true
