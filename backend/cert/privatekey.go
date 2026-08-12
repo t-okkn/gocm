@@ -171,7 +171,7 @@ func toPrivateKey(key string) (PrivateKey, error) {
 		return PrivateKey{}, errors.New("DER形式のデータ変換に失敗しました")
 	}
 
-	var priv interface{}
+	var priv any
 	var err error
 	var algo PrivateKeyAlgorithm = UNKNOWN_ALGORITHM
 

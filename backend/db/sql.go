@@ -97,7 +97,7 @@ func GetDataSourceName() (string, string, error) {
 }
 
 // SQLクエリ文を対象ファイルから取得します
-func GetSQL(name string, req interface{}) string {
+func GetSQL(name string, req any) string {
 	dir := getDirName()
 	if dir == "" {
 		return ""

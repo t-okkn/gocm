@@ -77,7 +77,7 @@ func (b BitBool) Value() (driver.Value, error) {
 }
 
 // Scan: DBからの読み込み (SELECT) 時に呼び出されます
-func (b *BitBool) Scan(src interface{}) error {
+func (b *BitBool) Scan(src any) error {
 	if src == nil {
 		*b = false
 		return nil

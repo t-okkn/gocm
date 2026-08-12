@@ -21,7 +21,7 @@ func NewRepository(dm *gorp.DbMap) *Repository {
 func (r *Repository) GetCAInfo(caid string) (models.TranCAInfo, error) {
 	var result models.TranCAInfo
 	query := GetSQL("get-cainfo", "")
-	val := map[string]interface{}{"id": caid}
+	val := map[string]any{"id": caid}
 
 	if err := r.SelectOne(&result, query, val); err != nil {
 		return models.TranCAInfo{}, err
@@ -33,7 +33,7 @@ func (r *Repository) GetCAInfo(caid string) (models.TranCAInfo, error) {
 // 過去に発行された全てのCA証明書の枚数を取得します
 func (r *Repository) CountCACert(id string) (int64, error) {
 	query := GetSQL("count-ca-cert", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]any{"id": id}
 
 	return r.SelectInt(query, val)
 }
@@ -42,7 +42,7 @@ func (r *Repository) CountCACert(id string) (int64, error) {
 func (r *Repository) GetCACerts(id string) ([]models.TranCertificate, error) {
 	var result []models.TranCertificate
 	query := GetSQL("get-ca-cert", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]any{"id": id}
 
 	if _, err := r.Select(&result, query, val); err != nil {
 		return []models.TranCertificate{}, err
@@ -57,7 +57,7 @@ func (r *Repository) GetServerCerts(
 
 	var result []models.TranCertificate
 	query := GetSQL("get-server-cert", req)
-	val := map[string]interface{}{
+	val := map[string]any{
 		"id": id,
 		"serial": req.Serial,
 		"common_name": req.CommonName,
@@ -76,7 +76,7 @@ func (r *Repository) GetClientCerts(
 
 	var result []models.TranCertificate
 	query := GetSQL("get-client-cert", req)
-	val := map[string]interface{}{
+	val := map[string]any{
 		"id": id,
 		"serial": req.Serial,
 		"common_name": req.CommonName,
@@ -93,7 +93,7 @@ func (r *Repository) GetClientCerts(
 func (r *Repository) GetCASummary(id string) ([]models.SlimCertData, error) {
 	var result []models.SlimCertData
 	query := GetSQL("get-ca-summary", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]any{"id": id}
 
 	if _, err := r.Select(&result, query, val); err != nil {
 		return []models.SlimCertData{}, err
@@ -105,7 +105,7 @@ func (r *Repository) GetCASummary(id string) ([]models.SlimCertData, error) {
 // 認証局内のシリアル番号の最大値を取得します
 func (r *Repository) GetMaxSerialNumber(id string) (int64, error) {
 	query := GetSQL("get-max-serial", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]any{"id": id}
 
 	return r.SelectInt(query, val)
 }
@@ -114,7 +114,7 @@ func (r *Repository) GetMaxSerialNumber(id string) (int64, error) {
 func (r *Repository) AuditCertData(id string) ([]models.SlimCertData, error) {
 	var result []models.SlimCertData
 	query := GetSQL("audit-cert-data", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]any{"id": id}
 
 	if _, err := r.Select(&result, query, val); err != nil {
 		return []models.SlimCertData{}, err
@@ -195,7 +195,7 @@ func (r *Repository) UpdateCert(old, new models.TranCertificate) error {
 func (r *Repository) DestroyCA(id string, tca models.TranCAInfo) error {
 	var result []models.TranCertificate
 	query := GetSQL("destroy-ca", "")
-	val := map[string]interface{}{"id": id}
+	val := map[string]any{"id": id}
 
 	tx, err := r.Begin()
 
@@ -219,7 +219,7 @@ func (r *Repository) DestroyCA(id string, tca models.TranCAInfo) error {
 
 	// 1. 複数DeleteのためのinterfaceなSliceを準備する
 	// （複数Insert、Updateでも同じ）
-	delete_items := make([]interface{}, len(result))
+	delete_items := make([]any, len(result))
 
 	for i, v := range result {
 		// 2. Deleteはポインタでないといけないが、直接ポインタで渡すと
