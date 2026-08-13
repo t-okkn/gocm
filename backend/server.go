@@ -131,7 +131,6 @@ func newCA(c *gin.Context) {
 	}
 
 	if err := repo.InsertCAInfo(cainfo); err != nil {
-		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, errFailedOperateData)
 		c.Abort()
 		return
@@ -425,7 +424,6 @@ func getCAInfoData(c *gin.Context) (models.TranCAInfo, bool) {
 	cainfo, err := repo.GetCAInfo(caidprm)
 
 	if err != nil {
-		fmt.Println(err)
 		c.JSON(http.StatusNotFound, errInvalidURL)
 		c.Abort()
 		return models.TranCAInfo{}, false
