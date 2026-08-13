@@ -470,10 +470,11 @@ func listCertData(c *gin.Context, certType cert.CertType) {
 	var data []models.TranCertificate
 	var err error
 
-	if certType == cert.SERVER {
+	switch certType {
+	case cert.SERVER:
 		data, err = repo.GetServerCerts(caid, dbReq)
 
-	} else if certType == cert.CLIENT {
+	case cert.CLIENT:
 		data, err = repo.GetClientCerts(caid, dbReq)
 	}
 
@@ -535,11 +536,12 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 	var tranData []models.TranCertificate
 	var notFound ErrorMessage
 
-	if certType == cert.SERVER {
+	switch certType {
+	case cert.SERVER:
 		tranData, err = repo.GetServerCerts(caid, dbReq)
 		notFound = errNotFoundValidServerCert
 
-	} else if certType == cert.CLIENT {
+	case cert.CLIENT:
 		tranData, err = repo.GetClientCerts(caid, dbReq)
 		notFound = errNotFoundValidClientCert
 	}
@@ -942,11 +944,12 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 		var data []models.TranCertificate
 		var errMsg ErrorMessage
 
-		if certType == cert.SERVER {
+		switch certType {
+		case cert.SERVER:
 			data, err = repo.GetServerCerts(caid, dbReq)
 			errMsg = errNotFoundValidServerCert
 
-		} else if certType == cert.CLIENT {
+		case cert.CLIENT:
 			data, err = repo.GetClientCerts(caid, dbReq)
 			errMsg = errNotFoundValidClientCert
 		}
