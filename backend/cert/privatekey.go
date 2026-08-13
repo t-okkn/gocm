@@ -215,36 +215,13 @@ func toPrivateKey(key string) (PrivateKey, error) {
 func (priv PrivateKey) getKeySize() int {
 	switch priv.Algorithm {
 	case RSA:
-		key, ok := priv.Key.(*rsa.PrivateKey)
-
-		if ok {
-			size := key.D.BitLen()
-
-			switch {
-			case size >= 2032 && size <= 2048:
-				return 2048
-
-			case size >= 4080 && size <= 4096:
-				return 4096
-			}
+		if key, ok := priv.Key.(*rsa.PrivateKey); ok && key.N != nil {
+			return key.N.BitLen()
 		}
 
 	case ECDSA:
-		key, ok := priv.Key.(*ecdsa.PrivateKey)
-
-		if ok {
-			size := key.D.BitLen()
-
-			switch {
-			case size >= 240 && size <= 256:
-				return 256
-
-			case size >= 368 && size <= 384:
-				return 384
-
-			case size >= 505 && size <= 521:
-				return 521
-			}
+		if key, ok := priv.Key.(*ecdsa.PrivateKey); ok && key.Curve != nil {
+			return key.Curve.Params().BitSize
 		}
 
 	case ED25519:
