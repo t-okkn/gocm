@@ -52,7 +52,7 @@ const (
 	DT_FORMAT string = "2006-01-02T15:04:05"
 
 	CA_EXPIRE time.Duration = 3153600000 * time.Second // 100年
-	SV_EXPIRE time.Duration = 33696000 * time.Second   // 390日
+	SV_EXPIRE time.Duration = 8640000 * time.Second    // 100日
 	CL_EXPIRE time.Duration = 3153600000 * time.Second // 100年
 
 	UNKNOWN_CERT_TYPE CertType = "UNKNOWN"
