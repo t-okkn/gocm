@@ -347,7 +347,7 @@ func (c *CertData) ToPkcs12(pin string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	return pkcs12.Encode(rand.Reader, c.PrivateKey.Key, cert, nil, pin)
+	return pkcs12.Modern.Encode(c.PrivateKey.Key, cert, nil, pin)
 }
 
 // プログラム内部で扱う証明書情報をDB上の証明書情報に変換します
