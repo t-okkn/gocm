@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOCM - Golang Certificate Manager Dashboard</title>
+    
+    <!-- daisyUI & Tailwind CSS (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/app.css">
+
+    <!-- Alpine.js (Defer) -->
+    <script defer src="js/app.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-base-300 min-h-screen flex flex-col text-base-content antialiased" x-data="gocmApp">
+
+    <!-- 1. トップナビゲーションバー -->
+    <header class="navbar bg-base-100 border-b border-base-200 px-4 sm:px-8 shadow-sm">
+        <div class="flex-1 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-primary text-primary-content flex items-center justify-center font-bold text-xl shadow-lg shadow-primary/30">
+                🔐
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight">GOCM <span class="text-xs font-normal opacity-70">Dashboard</span></h1>
+                <p class="text-xs text-base-content/60">Golang Certificate Manager</p>
+            </div>
+        </div>
+
+        <div class="flex-none flex items-center gap-3">
+            <!-- 接続ステータスバッジ -->
+            <template x-if="isConnected">
+                <div class="badge badge-success gap-2 py-3 px-3 sm:px-4 font-medium shadow-sm max-w-[160px] sm:max-w-xs shrink-0">
+                    <span class="w-2 h-2 rounded-full bg-white animate-pulse shrink-0"></span>
+                    <span class="truncate font-mono text-xs sm:text-sm" x-text="'CA: ' + caId" :title="caId"></span>
+                </div>
+            </template>
+            <template x-if="!isConnected">
+                <div class="badge badge-error gap-2 py-3 px-4 font-medium opacity-80">
+                    <span class="w-2 h-2 rounded-full bg-white"></span>
+                    未接続
+                </div>
+            </template>
+
+            <!-- テーマ切り替えボタン -->
+            <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm">
+                <input type="checkbox" @change="document.documentElement.setAttribute('data-theme', $event.target.checked ? 'light' : 'dark')" />
+                <!-- 🌙 Dark Icon -->
+                <svg class="swap-off fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,21.64,13Z"/></svg>
+                <!-- ☀️ Light Icon -->
+                <svg class="swap-on fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,6.35,4.93l-.71.71A1,1,0,0,0,5.64,7.05Zm12,11.31a1,1,0,0,0,1.41,0l.71-.71a1,1,0,0,0-1.41-1.41l-.71.71A1,1,0,0,0,17.66,18.36ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-3.36-6.07a1,1,0,0,0-1.41,0l-.71.71a1,1,0,0,0,1.41,1.41l.71-.71A1,1,0,0,0,17.64,4.93ZM12,7a5,5,0,1,0,5,5A5,5,0,0,0,12,7Z"/></svg>
+            </label>
+        </div>
+    </header>
+
+    <!-- 2. メインコンテンツエリア -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- A. ログイン・CA接続フォーム (未接続時) -->
+        <div x-show="!isConnected" x-transition class="max-w-md mx-auto my-12">
+            <div class="card bg-base-100 shadow-xl border border-base-200">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl font-bold justify-center gap-2 mb-2">
+                        <span>🔑</span> CA 認証局に接続
+                    </h2>
+                    <p class="text-sm text-center text-base-content/70 mb-6">
+                        対象の CA ID とアクセスパスワードを入力してください。
+                    </p>
+
+                    <!-- 標準HTMLフォーム (ブラウザのパスワードマネージャーに対応) -->
+                    <form @submit.prevent="connect" class="space-y-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">CA ID</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                name="username"
+                                autocomplete="username"
+                                x-model="caId" 
+                                placeholder="例: abcdefghijklm1234567890" 
+                                class="input input-bordered w-full focus:input-primary" 
+                                required
+                            />
+                        </div>
+
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">CA パスワード</span>
+                            </label>
+                            <input 
+                                type="password" 
+                                name="password"
+                                autocomplete="current-password"
+                                x-model="password" 
+                                placeholder="pk.abcdefghijklmnopqrstuvwxyz_ABCDEFGH-JKLMN12="
+                                class="input input-bordered w-full focus:input-primary" 
+                                required
+                            />
+                        </div>
+
+                        <!-- API接続URLアコーディオン -->
+                        <div class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-lg">
+                            <input type="checkbox" /> 
+                            <div class="collapse-title text-xs font-medium text-base-content/70">
+                                ⚙️ API 接続設定
+                            </div>
+                            <div class="collapse-content space-y-3">
+                                <div class="form-control">
+                                    <label class="label pt-0">
+                                        <span class="label-text text-xs">GOCM API URL</span>
+                                    </label>
+                                    <input 
+                                        type="url" 
+                                        x-model="apiUrl" 
+                                        placeholder="http://127.0.0.1:8507/v1" 
+                                        class="input input-sm input-bordered font-mono text-xs" 
+                                    />
+                                </div>
+                                <button type="button" @click="saveApiUrl" class="btn btn-xs btn-outline btn-block">
+                                    URL設定を保存
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-control mt-6">
+                            <button type="submit" class="btn btn-primary w-full shadow-lg" :disabled="isLoading">
+                                <span x-show="isLoading" class="loading loading-spinner loading-xs"></span>
+                                接続する
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- B. メインダッシュボード (接続時) -->
+        <div x-show="isConnected" x-transition class="space-y-6">
+
+            <!-- 1. CA 情報サマリーバー -->
+            <div class="card bg-base-100 shadow-md border border-base-200">
+                <div class="card-body p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="avatar placeholder shrink-0">
+                                <div class="bg-primary/10 text-primary rounded-xl w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center font-bold text-base sm:text-lg">
+                                    🏛️
+                                </div>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h2 class="text-lg sm:text-2xl font-bold truncate" x-text="rootCACert?.common_name || 'CA 認証局'" :title="rootCACert?.common_name"></h2>
+                                <div class="flex items-center gap-3 text-xs text-base-content/60 mt-0.5 flex-wrap">
+                                    <span>CA ID: <span class="font-mono text-base-content/80 font-semibold" x-text="caId"></span></span>
+                                    <span>•</span>
+                                    <span>有効期限: <span class="font-mono text-base-content/80 font-semibold" x-text="caExpirationDate"></span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 統計バッジ ＆ アクション -->
+                        <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                            <div class="stats shadow bg-base-200 border border-base-300 w-full sm:w-auto">
+                                <div class="stat py-2 px-3 sm:px-4">
+                                    <div class="stat-title text-[10px] sm:text-xs">全発行数</div>
+                                    <div class="stat-value text-base sm:text-lg font-mono text-primary" x-text="caSummary?.cert_count || (serverCerts.length + clientCerts.length)"></div>
+                                </div>
+                                <div class="stat py-2 px-3 sm:px-4">
+                                    <div class="stat-title text-[10px] sm:text-xs">期限間近 (監査)</div>
+                                    <div class="stat-value text-base sm:text-lg font-mono text-warning" x-text="auditCerts.length"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 shrink-0">
+                                <!-- CAルート証明書のダウンロード -->
+                                <button @click="downloadCACert" class="btn btn-xs sm:btn-sm btn-outline gap-1 whitespace-nowrap">
+                                    📥 CA証明書
+                                </button>
+
+                                <button @click="disconnect" class="btn btn-xs sm:btn-sm btn-ghost text-error gap-1 whitespace-nowrap">
+                                    切断
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. タブナビゲーションバー -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-base-200 pb-3">
+                <div class="tabs tabs-boxed bg-base-100 p-1 border border-base-200 overflow-x-auto whitespace-nowrap max-w-full flex-nowrap shrink-0">
+                    <button 
+                        @click="activeTab = 'audit'" 
+                        class="tab gap-2 transition-all"
+                        :class="activeTab === 'audit' ? 'tab-active bg-primary text-primary-content font-bold' : ''"
+                    >
+                        <span>⚠️ 期限切れ監査</span>
+                        <span 
+                            class="badge badge-sm" 
+                            :class="activeTab === 'audit' ? 'badge-neutral' : 'badge-warning'" 
+                            x-text="auditCerts.length"
+                        ></span>
+                    </button>
+
+                    <button 
+                        @click="activeTab = 'server'" 
+                        class="tab gap-2 transition-all"
+                        :class="activeTab === 'server' ? 'tab-active bg-primary text-primary-content font-bold' : ''"
+                    >
+                        <span>🖥️ サーバー証明書</span>
+                        <span class="badge badge-sm badge-ghost" x-text="serverCerts.length"></span>
+                    </button>
+
+                    <button 
+                        @click="activeTab = 'client'" 
+                        class="tab gap-2 transition-all"
+                        :class="activeTab === 'client' ? 'tab-active bg-primary text-primary-content font-bold' : ''"
+                    >
+                        <span>👤 クライアント証明書</span>
+                        <span class="badge badge-sm badge-ghost" x-text="clientCerts.length"></span>
+                    </button>
+                </div>
+
+                <!-- アクションボタン ＆ 検索バー -->
+                <div class="flex items-center gap-2">
+                    <template x-if="activeTab !== 'audit'">
+                        <input 
+                            type="text" 
+                            x-model="searchQuery" 
+                            placeholder="CN / シリアル検索..." 
+                            class="input input-sm input-bordered w-full sm:w-48"
+                        />
+                    </template>
+
+                    <template x-if="activeTab === 'server'">
+                        <button @click="showNewServerModal = true" class="btn btn-sm btn-primary gap-1 shadow-md hide-on-mobile">
+                            <span>＋</span> 新規サーバー証明書
+                        </button>
+                    </template>
+
+                    <template x-if="activeTab === 'client'">
+                        <button @click="showNewClientModal = true" class="btn btn-sm btn-primary gap-1 shadow-md hide-on-mobile">
+                            <span>＋</span> 新規クライアント証明書
+                        </button>
+                    </template>
+
+                    <button x-show="activeTab !== 'audit'" @click="refreshAllData" class="btn btn-sm btn-ghost btn-square" title="データ再読み込み">
+                        🔄
+                    </button>
+                </div>
+            </div>
+
+            <!-- モバイル時メッセージ -->
+            <div class="sm:hidden text-center text-xs text-base-content/50 bg-base-100 py-2 px-3 rounded-lg border border-base-200">
+                📱 モバイル表示中（安全のため「新規発行」「更新」ボタンはPC表示時のみ利用可能です）
+            </div>
+
+            <!-- 3. タブコンテンツエリア -->
+
+            <!-- タブ 1: 期限切れ監査 -->
+            <div x-show="activeTab === 'audit'" x-transition class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-base-100 p-3 sm:p-4 rounded-xl border border-base-200">
+                    <div class="text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
+                        <span class="font-bold">監査閾値:</span>
+                        <span>今後</span>
+                        <span class="badge badge-primary font-mono badge-sm" x-text="auditDays + ' 日以内'"></span>
+                        <span>に有効期限を迎える証明書</span>
+                    </div>
+                    <div class="join shrink-0 self-start sm:self-auto">
+                        <template x-for="days in [7, 14, 21]" :key="days">
+                            <button 
+                                @click="auditDays = days; fetchAuditData()" 
+                                class="join-item btn btn-xs"
+                                :class="auditDays === days ? 'btn-primary' : 'btn-ghost'"
+                                x-text="days + '日'"
+                            ></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 監査対象テーブル -->
+                <div class="card bg-base-100 shadow-md border border-base-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra w-full">
+                            <thead>
+                                <tr>
+                                    <th>シリアル</th>
+                                    <th>Common Name</th>
+                                    <th>種別</th>
+                                    <th>有効期限</th>
+                                    <th>残り日数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="cert in auditCerts" :key="cert.serial">
+                                    <tr class="hover">
+                                        <td class="font-mono text-xs font-semibold" x-text="'#' + cert.serial"></td>
+                                        <td class="font-bold font-mono" x-text="cert.common_name"></td>
+                                        <td>
+                                            <span 
+                                                class="badge badge-xs font-mono"
+                                                :class="cert.cert_type === 'SERVER' ? 'badge-info' : 'badge-accent'"
+                                                x-text="cert.cert_type"
+                                            ></span>
+                                        </td>
+                                        <td class="font-mono text-xs" x-text="cert.expiration_date"></td>
+                                        <td>
+                                            <span 
+                                                class="badge badge-sm font-mono font-bold"
+                                                :class="getDaysRemaining(cert.expiration_date) <= 7 ? 'badge-error pulse-badge-danger' : 'badge-warning pulse-badge-warning'"
+                                                x-text="getDaysRemaining(cert.expiration_date) + ' 日'"
+                                            ></span>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="auditCerts.length === 0">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-8 text-base-content/60">
+                                            🎉 期限切れ間近の証明書はありません (指定閾値: <span x-text="auditDays"></span> 日以内)
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- タブ 2: サーバー証明書一覧 -->
+            <div x-show="activeTab === 'server'" x-transition class="space-y-4">
+                <div class="card bg-base-100 shadow-md border border-base-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra w-full">
+                            <thead>
+                                <tr>
+                                    <th>シリアル</th>
+                                    <th>Common Name (ドメイン)</th>
+                                    <th class="hidden md:table-cell">発行日時</th>
+                                    <th>有効期限</th>
+                                    <th>ステータス</th>
+                                    <th class="text-right">アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="cert in filteredServerCerts" :key="cert.serial">
+                                    <tr class="hover">
+                                        <td class="font-mono text-xs font-semibold" x-text="'#' + cert.serial"></td>
+                                        <td class="font-bold font-mono" x-text="cert.common_name"></td>
+                                        <td class="font-mono text-xs opacity-70 hidden md:table-cell" x-text="cert.created || '-'"></td>
+                                        <td class="font-mono text-xs" x-text="cert.expiration_date"></td>
+                                        <td>
+                                            <span 
+                                                class="badge badge-sm font-mono"
+                                                :class="getDaysRemaining(cert.expiration_date) <= 7 ? 'badge-error' : (getDaysRemaining(cert.expiration_date) <= 21 ? 'badge-warning' : 'badge-success')"
+                                                x-text="getDaysRemaining(cert.expiration_date) <= 0 ? '期限切れ' : (getDaysRemaining(cert.expiration_date) + '日残')"
+                                            ></span>
+                                        </td>
+                                        <td class="text-right space-x-1">
+                                            <!-- .crt ダウンロード -->
+                                            <button 
+                                                @click="downloadServerCert(cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-outline"
+                                                title="証明書 (.crt) のダウンロード"
+                                            >
+                                                📜 .crt
+                                            </button>
+                                            <!-- .key ダウンロード -->
+                                            <button 
+                                                @click="downloadServerKey(cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-outline btn-warning"
+                                                title="秘密鍵 (.key) のダウンロード"
+                                            >
+                                                🔑 .key
+                                            </button>
+                                            <!-- 更新 (PUT) -->
+                                            <button 
+                                                @click="renewCert('server', cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-primary hide-on-mobile"
+                                                title="証明書の更新"
+                                            >
+                                                🔄 更新
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="filteredServerCerts.length === 0">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-8 text-base-content/60">
+                                            証明書が見つかりませんでした。
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- タブ 3: クライアント証明書一覧 -->
+            <div x-show="activeTab === 'client'" x-transition class="space-y-4">
+                <div class="card bg-base-100 shadow-md border border-base-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra w-full">
+                            <thead>
+                                <tr>
+                                    <th>シリアル</th>
+                                    <th>Common Name</th>
+                                    <th class="hidden md:table-cell">発行日時</th>
+                                    <th>有効期限</th>
+                                    <th>ステータス</th>
+                                    <th class="text-right">アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="cert in filteredClientCerts" :key="cert.serial">
+                                    <tr class="hover">
+                                        <td class="font-mono text-xs font-semibold" x-text="'#' + cert.serial"></td>
+                                        <td class="font-bold" x-text="cert.common_name"></td>
+                                        <td class="font-mono text-xs opacity-70 hidden md:table-cell" x-text="cert.created || '-'"></td>
+                                        <td class="font-mono text-xs" x-text="cert.expiration_date"></td>
+                                        <td>
+                                            <span 
+                                                class="badge badge-sm font-mono"
+                                                :class="getDaysRemaining(cert.expiration_date) <= 7 ? 'badge-error' : (getDaysRemaining(cert.expiration_date) <= 21 ? 'badge-warning' : 'badge-success')"
+                                                x-text="getDaysRemaining(cert.expiration_date) <= 0 ? '期限切れ' : (getDaysRemaining(cert.expiration_date) + '日残')"
+                                            ></span>
+                                        </td>
+                                        <td class="text-right space-x-1">
+                                            <button 
+                                                @click="downloadClientCert(cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-outline"
+                                                title="証明書 (.crt) のダウンロード"
+                                            >
+                                                📜 .crt
+                                            </button>
+                                            <button 
+                                                @click="downloadClientKey(cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-outline btn-warning"
+                                                title="秘密鍵 (.key) のダウンロード"
+                                            >
+                                                🔑 .key
+                                            </button>
+                                            <button 
+                                                @click="renewCert('client', cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-primary hide-on-mobile"
+                                                title="証明書の更新"
+                                            >
+                                                🔄 更新
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="filteredClientCerts.length === 0">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-8 text-base-content/60">
+                                            証明書が見つかりませんでした。
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 4. モーダル ダイアログ -->
+
+    <!-- サーバー証明書 新規発行モーダル -->
+    <div class="modal" :class="{ 'modal-open': showNewServerModal }">
+        <div class="modal-box max-w-lg">
+            <h3 class="font-bold text-lg flex items-center gap-2 mb-4">
+                🖥️ 新規サーバー証明書の発行
+            </h3>
+            
+            <form @submit.prevent="createServerCert" class="space-y-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Common Name (プライマリドメイン名) *</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        x-model="newServer.commonName" 
+                        placeholder="例: app.example.com" 
+                        class="input input-bordered w-full font-mono" 
+                        required
+                    />
+                </div>
+
+                <!-- SAN (Subject Alt Name) タグマネージャー -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Subject Alternative Names (SAN)</span>
+                    </label>
+                    
+                    <div class="join w-full">
+                        <select x-model="newServer.sanPrefix" class="select select-bordered join-item font-mono text-xs">
+                            <option value="DNS:">DNS:</option>
+                            <option value="IP:">IP:</option>
+                            <option value="URI:">URI:</option>
+                            <option value="email:">email:</option>
+                        </select>
+                        <input 
+                            type="text" 
+                            x-model="newServer.sanInput" 
+                            @keydown.enter.prevent="addSan"
+                            placeholder="例: www.example.com または 192.168.1.1" 
+                            class="input input-bordered join-item w-full font-mono text-sm" 
+                        />
+                        <button type="button" @click="addSan" class="btn btn-neutral join-item">
+                            追加
+                        </button>
+                    </div>
+
+                    <!-- SAN タグバッジリスト -->
+                    <div class="flex flex-wrap gap-1.5 mt-3 min-h-[32px] p-2 bg-base-200 rounded-lg border border-base-300">
+                        <template x-for="(san, idx) in newServer.sans" :key="idx">
+                            <span class="badge badge-primary gap-1 font-mono text-xs py-2 px-3">
+                                <span x-text="san"></span>
+                                <button type="button" @click="removeSan(idx)" class="btn btn-ghost btn-xs btn-circle text-primary-content hover:bg-primary-focus">✕</button>
+                            </span>
+                        </template>
+                        <template x-if="newServer.sans.length === 0">
+                            <span class="text-xs text-base-content/50 italic self-center">
+                                SAN未追加（自動で DNS:&lt;CommonName&gt; が使用されます）
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="modal-action mt-6">
+                    <button type="button" @click="showNewServerModal = false" class="btn btn-ghost">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="btn btn-primary" :disabled="isLoading">
+                        <span x-show="isLoading" class="loading loading-spinner loading-xs"></span>
+                        発行する
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- クライアント証明書 新規発行モーダル -->
+    <div class="modal" :class="{ 'modal-open': showNewClientModal }">
+        <div class="modal-box max-w-md">
+            <h3 class="font-bold text-lg flex items-center gap-2 mb-4">
+                👤 新規クライアント証明書の発行
+            </h3>
+            
+            <form @submit.prevent="createClientCert" class="space-y-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Common Name (ユーザー名/端末識別名) *</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        x-model="newClient.commonName" 
+                        placeholder="例: user01@example.com または client-pc-01" 
+                        class="input input-bordered w-full font-mono" 
+                        required
+                    />
+                </div>
+
+                <div class="modal-action mt-6">
+                    <button type="button" @click="showNewClientModal = false" class="btn btn-ghost">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="btn btn-primary" :disabled="isLoading">
+                        <span x-show="isLoading" class="loading loading-spinner loading-xs"></span>
+                        発行する
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. トースト通知オーバーレイ -->
+    <div class="toast toast-end toast-bottom z-50">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div 
+                class="alert shadow-lg text-sm font-medium transition-all transform duration-300"
+                :class="{
+                    'alert-success': toast.type === 'success',
+                    'alert-error': toast.type === 'error',
+                    'alert-warning': toast.type === 'warning',
+                    'alert-info': toast.type === 'info'
+                }"
+            >
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+</body>
+</html>
