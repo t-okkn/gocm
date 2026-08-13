@@ -36,6 +36,12 @@ document.addEventListener('alpine:init', () => {
         // モーダル表示状態
         showNewServerModal: false,
         showNewClientModal: false,
+        showP12Modal: false,
+        p12Target: {
+            serial: '',
+            commonName: '',
+            pin: ''
+        },
 
         // トースト通知システム
         toasts: [],
@@ -121,6 +127,8 @@ document.addEventListener('alpine:init', () => {
             this.newClient = { commonName: '' };
             this.showNewServerModal = false;
             this.showNewClientModal = false;
+            this.showP12Modal = false;
+            this.p12Target = { serial: '', commonName: '', pin: '' };
 
             sessionStorage.removeItem('gocm_ca_id');
             sessionStorage.removeItem('gocm_password');
@@ -342,8 +350,8 @@ document.addEventListener('alpine:init', () => {
                     throw new Error(`取得失敗: HTTP ${res.status}`);
                 }
 
-                const text = await res.text();
-                const blob = new Blob([text], { type: 'application/x-pem-file' });
+                const blob = await res.blob();
+                const pinHeader = res.headers.get('GOCM-REQUEST-PIN');
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = blobUrl;
@@ -353,7 +361,11 @@ document.addEventListener('alpine:init', () => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(blobUrl);
 
-                this.notify(`'${filename}' をダウンロードしました`, 'info');
+                let msg = `'${filename}' をダウンロードしました`;
+                if (pinHeader) {
+                    msg += ` (PIN: ${pinHeader})`;
+                }
+                this.notify(msg, 'info');
 
             } catch (err) {
                 this.notify(`ダウンロード失敗: ${err.message}`, 'error');
@@ -383,6 +395,38 @@ document.addEventListener('alpine:init', () => {
         downloadClientKey(serial, commonName) {
             const url = `${this.apiUrl}/certs/client/${encodeURIComponent(this.caId)}/${serial}/secretkey?format=pem`;
             this.downloadFile(url, `${commonName}.key`, true);
+        },
+
+        openP12Modal(serial, commonName) {
+            const today = new Date().toISOString().split('T')[0];
+            this.p12Target = {
+                serial: serial,
+                commonName: commonName,
+                pin: today
+            };
+            this.showP12Modal = true;
+        },
+
+        downloadClientP12(serial, commonName, pin = '') {
+            let url = `${this.apiUrl}/certs/client/${encodeURIComponent(this.caId)}/${serial}/secretkey?format=p12`;
+            if (pin && pin.trim()) {
+                url += `&pin=${encodeURIComponent(pin.trim())}`;
+            }
+            this.downloadFile(url, `${commonName}.p12`, true);
+        },
+
+        confirmP12Download() {
+            this.downloadClientP12(this.p12Target.serial, this.p12Target.commonName, this.p12Target.pin);
+            this.showP12Modal = false;
+        },
+
+        copyToClipboard(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                this.notify('PINをクリップボードにコピーしました', 'info');
+            }).catch(() => {
+                this.notify('コピーに失敗しました', 'warning');
+            });
         },
 
         // --- 計算プロパティ / フィルタリング ---

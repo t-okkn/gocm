@@ -429,22 +429,29 @@
                                         </td>
                                         <td class="text-right space-x-1">
                                             <button 
+                                                @click="openP12Modal(cert.serial, cert.common_name)" 
+                                                class="btn btn-xs btn-primary font-bold shadow-sm"
+                                                title="スマホ・PC用 PKCS#12 (.p12) のダウンロード"
+                                            >
+                                                📱 .p12
+                                            </button>
+                                            <button 
                                                 @click="downloadClientCert(cert.serial, cert.common_name)" 
                                                 class="btn btn-xs btn-outline"
-                                                title="証明書 (.crt) のダウンロード"
+                                                title="証明書単体 (.crt) のダウンロード"
                                             >
                                                 📜 .crt
                                             </button>
                                             <button 
                                                 @click="downloadClientKey(cert.serial, cert.common_name)" 
                                                 class="btn btn-xs btn-outline btn-warning"
-                                                title="秘密鍵 (.key) のダウンロード"
+                                                title="秘密鍵単体 (.key) のダウンロード"
                                             >
                                                 🔑 .key
                                             </button>
                                             <button 
                                                 @click="renewCert('client', cert.serial, cert.common_name)" 
-                                                class="btn btn-xs btn-primary hide-on-mobile"
+                                                class="btn btn-xs btn-ghost hide-on-mobile opacity-70 hover:opacity-100"
                                                 title="証明書の更新"
                                             >
                                                 🔄 更新
@@ -573,6 +580,72 @@
                     <button type="submit" class="btn btn-primary" :disabled="isLoading">
                         <span x-show="isLoading" class="loading loading-spinner loading-xs"></span>
                         発行する
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PKCS#12 (.p12) ダウンロード設定モーダル -->
+    <div class="modal" :class="{ 'modal-open': showP12Modal }">
+        <div class="modal-box max-w-md">
+            <h3 class="font-bold text-lg flex items-center gap-2 mb-2">
+                📱 PKCS#12 (.p12) のダウンロード
+            </h3>
+            <p class="text-xs text-base-content/70 mb-4">
+                スマホ (iOS / Android) や PC のブラウザにインポートできる PKCS#12 形式 (.p12) の証明書パッケージをダウンロードします。
+            </p>
+
+            <form @submit.prevent="confirmP12Download" class="space-y-4">
+                <div class="form-control">
+                    <label class="label pb-1">
+                        <span class="label-text font-semibold">Common Name (対象証明書)</span>
+                    </label>
+                    <div class="font-mono text-sm font-bold bg-base-200 p-2.5 rounded-lg border border-base-300 flex justify-between items-center">
+                        <span x-text="p12Target.commonName"></span>
+                        <span class="badge badge-sm font-mono" x-text="'#' + p12Target.serial"></span>
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label pb-1">
+                        <span class="label-text font-semibold">インポート用 PIN (パスワード) *</span>
+                    </label>
+                    <div class="join w-full">
+                        <input 
+                            type="text" 
+                            x-model="p12Target.pin" 
+                            placeholder="例: 2026-08-14" 
+                            class="input input-bordered join-item w-full font-mono" 
+                            required
+                        />
+                        <button 
+                            type="button" 
+                            @click="copyToClipboard(p12Target.pin)" 
+                            class="btn btn-neutral join-item"
+                            title="PINをコピー"
+                        >
+                            📋 コピー
+                        </button>
+                    </div>
+                    <label class="label pt-1.5">
+                        <span class="label-text-alt text-base-content/60">
+                            💡 スマホ等でインポートする際、このPINの入力が必要です。
+                        </span>
+                    </label>
+                </div>
+
+                <div class="alert alert-info py-2.5 text-xs">
+                    <span>📱 <strong>スマホでのインポート手順:</strong><br>
+                    ダウンロードした <code>.p12</code> ファイルを開き、証明書/プロファイルとして追加する際に上記の PIN を入力してください。</span>
+                </div>
+
+                <div class="modal-action mt-6">
+                    <button type="button" @click="showP12Modal = false" class="btn btn-ghost">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="btn btn-primary font-bold">
+                        📥 .p12 をダウンロード
                     </button>
                 </div>
             </form>
