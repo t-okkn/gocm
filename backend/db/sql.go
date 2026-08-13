@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"embed"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,6 +15,9 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/go-sql-driver/mysql"
 )
+
+//go:embed SQLFiles/*/*.sql
+var	sqlFiles embed.FS
 
 type connectConfig struct {
 	Type string         `toml:"db_type"`
@@ -98,20 +102,19 @@ func GetDataSourceName() (string, string, error) {
 
 // SQLクエリ文を対象ファイルから取得します
 func GetSQL(name string, req any) string {
-	dir := getDirName()
-	if dir == "" {
-		return ""
-	}
-
 	dbType, _, err := GetDataSourceName()
 	if err != nil {
 		return ""
 	}
 
-	var buf bytes.Buffer
-	filename := filepath.Join(dir, dbType, fmt.Sprintf("%s.sql", name))
+	path := fmt.Sprintf("SQLFiles/%s/%s.sql", dbType, name)
+	content, err := sqlFiles.ReadFile(path)
+	if err != nil {
+		return ""
+	}
 
-	t := template.Must(template.ParseFiles(filename))
+	var buf bytes.Buffer
+	t := template.Must(template.New(name).Parse(string(content)))
 	t.Execute(&buf, req)
 
 	return buf.String()
@@ -134,18 +137,23 @@ func registerMysqlTLSConfig(tlsi tlsInfo) error {
 	switch tlsi.SSLMode {
 	case "require":
 		tlsConfig.InsecureSkipVerify = true
+
 	case "verify-ca", "verify-full":
 		if tlsi.CA != "" {
 			rootCertPool := x509.NewCertPool()
 			pem, err := ioutil.ReadFile(tlsi.CA)
+
 			if err != nil {
 				return err
 			}
+
 			if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 				return errors.New("CA証明書の追加に失敗しました")
 			}
+
 			tlsConfig.RootCAs = rootCertPool
 		}
+		
 		if tlsi.SSLMode == "verify-ca" {
 			tlsConfig.InsecureSkipVerify = true
 		}
