@@ -21,10 +21,10 @@ type PrivateKey struct {
 }
 
 const (
-	UNKNOWN_ALGORITHM PrivateKeyAlgorithm = "UNKNOWN"
-	RSA               PrivateKeyAlgorithm = "RSA"
-	ECDSA             PrivateKeyAlgorithm = "ECDSA"
-	ED25519           PrivateKeyAlgorithm = "ED25519"
+	UnknownAlgorithm PrivateKeyAlgorithm = "UNKNOWN"
+	RSA              PrivateKeyAlgorithm = "RSA"
+	ECDSA            PrivateKeyAlgorithm = "ECDSA"
+	ED25519          PrivateKeyAlgorithm = "ED25519"
 )
 
 // RSA PrivateKeyを生成します
@@ -105,42 +105,42 @@ func GenerateED25519Key() (PrivateKey, error) {
 // PrivateKey構造体からPEM形式のデータに変換します
 func (priv PrivateKey) ToPem() (string, error) {
 	var (
-		priv_dsr []byte
-		err      error
-		priv_blk *pem.Block
+		privDsr []byte
+		err     error
+		privBlk *pem.Block
 	)
 
 	switch key := any(priv.Key).(type) {
 	case *rsa.PrivateKey:
-		priv_dsr = x509.MarshalPKCS1PrivateKey(key)
+		privDsr = x509.MarshalPKCS1PrivateKey(key)
 
-		priv_blk = &pem.Block{
+		privBlk = &pem.Block{
 			Type:  "RSA PRIVATE KEY",
-			Bytes: priv_dsr,
+			Bytes: privDsr,
 		}
 
 	case *ecdsa.PrivateKey:
-		priv_dsr, err = x509.MarshalECPrivateKey(key)
+		privDsr, err = x509.MarshalECPrivateKey(key)
 
 		if err != nil {
 			return "", err
 		}
 
-		priv_blk = &pem.Block{
+		privBlk = &pem.Block{
 			Type:  "EC PRIVATE KEY",
-			Bytes: priv_dsr,
+			Bytes: privDsr,
 		}
 
 	case ed25519.PrivateKey:
-		priv_dsr, err = x509.MarshalPKCS8PrivateKey(key)
+		privDsr, err = x509.MarshalPKCS8PrivateKey(key)
 
 		if err != nil {
 			return "", err
 		}
 
-		priv_blk = &pem.Block{
+		privBlk = &pem.Block{
 			Type:  "PRIVATE KEY",
-			Bytes: priv_dsr,
+			Bytes: privDsr,
 		}
 
 	default:
@@ -148,7 +148,7 @@ func (priv PrivateKey) ToPem() (string, error) {
 		return "", e
 	}
 
-	b := pem.EncodeToMemory(priv_blk)
+	b := pem.EncodeToMemory(privBlk)
 
 	if b != nil {
 		return string(b), nil
@@ -173,7 +173,7 @@ func toPrivateKey(key string) (PrivateKey, error) {
 
 	var priv any
 	var err error
-	var algo PrivateKeyAlgorithm = UNKNOWN_ALGORITHM
+	var algo PrivateKeyAlgorithm = UnknownAlgorithm
 
 	switch block.Type {
 	case "RSA PRIVATE KEY":

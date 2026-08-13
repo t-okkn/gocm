@@ -49,16 +49,16 @@ type CreateServerCertRequest struct {
 }
 
 const (
-	DT_FORMAT string = "2006-01-02T15:04:05"
+	DTFormat string = "2006-01-02T15:04:05"
 
-	CA_EXPIRE time.Duration = 3153600000 * time.Second // 100年
-	SV_EXPIRE time.Duration = 8640000 * time.Second    // 100日
-	CL_EXPIRE time.Duration = 3153600000 * time.Second // 100年
+	caExpire time.Duration = 3153600000 * time.Second // 100年
+	svExpire time.Duration = 8640000 * time.Second    // 100日
+	clExpire time.Duration = 3153600000 * time.Second // 100年
 
-	UNKNOWN_CERT_TYPE CertType = "UNKNOWN"
-	CA                CertType = "CA"
-	SERVER            CertType = "SERVER"
-	CLIENT            CertType = "CLIENT"
+	UnknownCertType CertType = "UNKNOWN"
+	CA              CertType = "CA"
+	SERVER          CertType = "SERVER"
+	CLIENT          CertType = "CLIENT"
 )
 
 // GenerateBase32ID: 15バイトの乱数から24文字のBase32文字列を生成します
@@ -77,7 +77,7 @@ func GenerateBase32ID() (string, error) {
 func CreateCACert(req *CreateCACertRequest) (*CertData, error) {
 
 	created := time.Now()
-	expire := created.Add(CA_EXPIRE)
+	expire := created.Add(caExpire)
 	usage := x509.KeyUsageDigitalSignature |
 		x509.KeyUsageCertSign |
 		x509.KeyUsageCRLSign
@@ -93,7 +93,7 @@ func CreateCACert(req *CreateCACertRequest) (*CertData, error) {
 	}
 
 	priv := req.PrivateKey.Key
-	pem_data, err := createCertificate(tpl, tpl, priv.Public(), priv)
+	pemData, err := createCertificate(tpl, tpl, priv.Public(), priv)
 
 	if err != nil {
 		return nil, err
@@ -105,9 +105,9 @@ func CreateCACert(req *CreateCACertRequest) (*CertData, error) {
 		CommonName:     req.Subject.CommonName,
 		PrivateKey:     req.PrivateKey,
 		Type:           CA,
-		PemData:        pem_data,
-		Created:        created.Format(DT_FORMAT),
-		ExpirationDate: expire.Format(DT_FORMAT),
+		PemData:        pemData,
+		Created:        created.Format(DTFormat),
+		ExpirationDate: expire.Format(DTFormat),
 	}
 
 	return &data, nil
@@ -124,14 +124,14 @@ func CreateServerCert(
 	}
 
 	created := time.Now()
-	expire := created.Add(SV_EXPIRE)
+	expire := created.Add(svExpire)
 
 	usage := x509.KeyUsageDigitalSignature |
 		x509.KeyUsageContentCommitment |
 		x509.KeyUsageKeyEncipherment |
 		x509.KeyUsageKeyAgreement
 
-	ext_key_usage := []x509.ExtKeyUsage{
+	extKeyUsage := []x509.ExtKeyUsage{
 		x509.ExtKeyUsageServerAuth,
 	}
 
@@ -144,7 +144,7 @@ func CreateServerCert(
 		NotAfter:       expire,
 		NotBefore:      created,
 		KeyUsage:       usage,
-		ExtKeyUsage:    ext_key_usage,
+		ExtKeyUsage:    extKeyUsage,
 		DNSNames:       req.DNSNames,
 		IPAddresses:    req.IPAddresses,
 		URIs:           req.URIs,
@@ -157,7 +157,7 @@ func CreateServerCert(
 		return nil, err
 	}
 
-	pem_data, err := createCertificate(
+	pemData, err := createCertificate(
 		tpl, cacert, priv.Key.Public(), ca.PrivateKey.Key)
 
 	if err != nil {
@@ -170,9 +170,9 @@ func CreateServerCert(
 		CommonName:     req.CommonName,
 		PrivateKey:     priv,
 		Type:           SERVER,
-		PemData:        pem_data,
-		Created:        created.Format(DT_FORMAT),
-		ExpirationDate: expire.Format(DT_FORMAT),
+		PemData:        pemData,
+		Created:        created.Format(DTFormat),
+		ExpirationDate: expire.Format(DTFormat),
 	}
 
 	return &data, nil
@@ -189,13 +189,13 @@ func CreateClientCert(
 	}
 
 	created := time.Now()
-	expire := created.Add(CL_EXPIRE)
+	expire := created.Add(clExpire)
 
 	usage := x509.KeyUsageDigitalSignature |
 		x509.KeyUsageContentCommitment |
 		x509.KeyUsageKeyEncipherment
 
-	ext_key_usage := []x509.ExtKeyUsage{
+	extKeyUsage := []x509.ExtKeyUsage{
 		x509.ExtKeyUsageClientAuth,
 	}
 
@@ -208,7 +208,7 @@ func CreateClientCert(
 		NotAfter:     expire,
 		NotBefore:    created,
 		KeyUsage:     usage,
-		ExtKeyUsage:  ext_key_usage,
+		ExtKeyUsage:  extKeyUsage,
 	}
 
 	priv, err := ca.newPrivateKey()
@@ -217,7 +217,7 @@ func CreateClientCert(
 		return nil, err
 	}
 
-	pem_data, err := createCertificate(
+	pemData, err := createCertificate(
 		tpl, cacert, priv.Key.Public(), ca.PrivateKey.Key)
 
 	if err != nil {
@@ -230,9 +230,9 @@ func CreateClientCert(
 		CommonName:     subject.CommonName,
 		PrivateKey:     priv,
 		Type:           CLIENT,
-		PemData:        pem_data,
-		Created:        created.Format(DT_FORMAT),
-		ExpirationDate: expire.Format(DT_FORMAT),
+		PemData:        pemData,
+		Created:        created.Format(DTFormat),
+		ExpirationDate: expire.Format(DTFormat),
 	}
 
 	return &data, nil
@@ -270,28 +270,28 @@ func ToCertData(
 
 // 証明書を更新します
 func (c *CertData) UpdateCert(serial uint32, ca *CertData) (*CertData, error) {
-	old_cert, err := c.toX509CertificateData()
+	oldCert, err := c.toX509CertificateData()
 
 	if err != nil {
 		return nil, err
 	}
 
 	created := time.Now()
-	expire := created.Add(old_cert.NotAfter.Sub(old_cert.NotBefore))
+	expire := created.Add(oldCert.NotAfter.Sub(oldCert.NotBefore))
 
 	tpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(int64(serial)),
-		Subject:               old_cert.Subject,
+		Subject:               oldCert.Subject,
 		NotAfter:              expire,
 		NotBefore:             created,
-		KeyUsage:              old_cert.KeyUsage,
-		ExtKeyUsage:           old_cert.ExtKeyUsage,
-		DNSNames:              old_cert.DNSNames,
-		IPAddresses:           old_cert.IPAddresses,
-		URIs:                  old_cert.URIs,
-		EmailAddresses:        old_cert.EmailAddresses,
-		IsCA:                  old_cert.IsCA,
-		BasicConstraintsValid: old_cert.BasicConstraintsValid,
+		KeyUsage:              oldCert.KeyUsage,
+		ExtKeyUsage:           oldCert.ExtKeyUsage,
+		DNSNames:              oldCert.DNSNames,
+		IPAddresses:           oldCert.IPAddresses,
+		URIs:                  oldCert.URIs,
+		EmailAddresses:        oldCert.EmailAddresses,
+		IsCA:                  oldCert.IsCA,
+		BasicConstraintsValid: oldCert.BasicConstraintsValid,
 	}
 
 	priv, err := c.newPrivateKey()
@@ -300,10 +300,10 @@ func (c *CertData) UpdateCert(serial uint32, ca *CertData) (*CertData, error) {
 		return nil, err
 	}
 
-	var pem_data string
+	var pemData string
 
 	if c.Type == CA {
-		pem_data, err = createCertificate(tpl, tpl, priv.Key.Public(), priv.Key)
+		pemData, err = createCertificate(tpl, tpl, priv.Key.Public(), priv.Key)
 
 	} else {
 		cacert, err := ca.toX509CertificateData()
@@ -312,7 +312,7 @@ func (c *CertData) UpdateCert(serial uint32, ca *CertData) (*CertData, error) {
 			return nil, err
 		}
 
-		pem_data, err = createCertificate(
+		pemData, err = createCertificate(
 			tpl, cacert, priv.Key.Public(), ca.PrivateKey.Key)
 	}
 
@@ -326,9 +326,9 @@ func (c *CertData) UpdateCert(serial uint32, ca *CertData) (*CertData, error) {
 		CommonName:     tpl.Subject.CommonName,
 		PrivateKey:     priv,
 		Type:           c.Type,
-		PemData:        pem_data,
-		Created:        created.Format(DT_FORMAT),
-		ExpirationDate: expire.Format(DT_FORMAT),
+		PemData:        pemData,
+		Created:        created.Format(DTFormat),
+		ExpirationDate: expire.Format(DTFormat),
 	}
 
 	return &data, nil

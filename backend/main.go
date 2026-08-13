@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const LISTEN_PORT string = ":8507"
+const listenPort string = ":8507"
 
 var (
 	Version string
@@ -21,5 +21,5 @@ func main() {
 		return
 	}
 
-	SetupRouter().Run(LISTEN_PORT)
+	SetupRouter().Run(listenPort)
 }

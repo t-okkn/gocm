@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	CA_PASSWORD   string = "GOCM-CA-PASSWORD"
-	DEFAULT_AUDIT int    = 30
+	caPassword   string = "GOCM-CA-PASSWORD"
+	defaultAudit int    = 30
 )
 
 var (
@@ -244,20 +244,20 @@ func auditAllCerts(c *gin.Context) {
 		return
 	}
 
-	days_str := fmt.Sprintf("%d", DEFAULT_AUDIT)
-	days_qry := c.DefaultQuery("days", days_str)
-	days, err := strconv.Atoi(days_qry)
+	daysStr := fmt.Sprintf("%d", defaultAudit)
+	daysQry := c.DefaultQuery("days", daysStr)
+	days, err := strconv.Atoi(daysQry)
 
 	// 不正な文字列、1未満365より大きい数は強制的に30日
 	if err != nil || (days < 1 || days > 365) {
-		days = DEFAULT_AUDIT
+		days = defaultAudit
 	}
 
 	expected := time.Now().AddDate(0, 0, days)
 	response := models.AuditResponse{
 		CAID:         caid,
 		Days:         days,
-		ExpectedDate: expected.Format(cert.DT_FORMAT),
+		ExpectedDate: expected.Format(cert.DTFormat),
 	}
 	response.Certs = make([]models.CertSummary, 0, len(certs))
 
@@ -327,7 +327,7 @@ func getCACert(c *gin.Context) {
 			return
 		}
 
-		cert_data, err := cert.ToCertData(password, cadata[0])
+		certData, err := cert.ToCertData(password, cadata[0])
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -338,7 +338,7 @@ func getCACert(c *gin.Context) {
 			return
 		}
 
-		pem, err := cert_data.PrivateKey.ToPem()
+		pem, err := certData.PrivateKey.ToPem()
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -349,13 +349,13 @@ func getCACert(c *gin.Context) {
 			return
 		}
 
-		content_type := "application/x-pem-file; charset=utf-8"
-		c.Data(http.StatusOK, content_type, []byte(pem))
+		contentType := "application/x-pem-file; charset=utf-8"
+		c.Data(http.StatusOK, contentType, []byte(pem))
 
 	} else {
-		content_type := "application/pkix-cert; charset=utf-8"
-		byte_data := []byte(cadata[0].CertData)
-		c.Data(http.StatusOK, content_type, byte_data)
+		contentType := "application/pkix-cert; charset=utf-8"
+		byteData := []byte(cadata[0].CertData)
+		c.Data(http.StatusOK, contentType, byteData)
 	}
 
 	// こちらでも問題はない
@@ -435,7 +435,7 @@ func getCAInfoData(c *gin.Context) (models.TranCAInfo, bool) {
 // リクエストされたパスワードが正しいか確認し、
 // 正しい場合はパスワードを取得します
 func checkPassword(c *gin.Context, hashedPass string) (string, bool) {
-	password := c.GetHeader(CA_PASSWORD)
+	password := c.GetHeader(caPassword)
 
 	if err := cert.VerifyPassword(hashedPass, password); err != nil {
 		// パスワードの照合エラーについては、アクセス権限なしとする
@@ -460,10 +460,10 @@ func listCertData(c *gin.Context, certType cert.CertType) {
 		return
 	}
 
-	common_name := sanitize(c.DefaultQuery("cn", ""))
-	db_req := models.DBRequest{
+	commonName := sanitize(c.DefaultQuery("cn", ""))
+	dbReq := models.DBRequest{
 		Serial:     0,
-		CommonName: common_name,
+		CommonName: commonName,
 	}
 
 	caid := cainfo.CAID
@@ -471,10 +471,10 @@ func listCertData(c *gin.Context, certType cert.CertType) {
 	var err error
 
 	if certType == cert.SERVER {
-		data, err = repo.GetServerCerts(caid, db_req)
+		data, err = repo.GetServerCerts(caid, dbReq)
 
 	} else if certType == cert.CLIENT {
-		data, err = repo.GetClientCerts(caid, db_req)
+		data, err = repo.GetClientCerts(caid, dbReq)
 	}
 
 	if err != nil {
@@ -486,7 +486,7 @@ func listCertData(c *gin.Context, certType cert.CertType) {
 	res := models.CertsResponse{
 		CAID:       caid,
 		Count:      len(data),
-		CommonName: common_name,
+		CommonName: commonName,
 	}
 	res.Certs = make([]models.CertSummary, len(data))
 
@@ -516,8 +516,8 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 		return
 	}
 
-	serial_prm := c.Param("serial")
-	serial, err := strconv.ParseUint(serial_prm, 10, 0)
+	serialPrm := c.Param("serial")
+	serial, err := strconv.ParseUint(serialPrm, 10, 0)
 
 	if err != nil || serial > uint64(^uint32(0)) {
 		c.JSON(http.StatusBadRequest, errInvalidSerial)
@@ -526,22 +526,22 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 	}
 
 	// CommonNameが空文字でもSQL問い合わせ時によしなに処理してくれる
-	db_req := models.DBRequest{
+	dbReq := models.DBRequest{
 		Serial:     uint32(serial),
 		CommonName: "",
 	}
 
 	caid := cainfo.CAID
-	var tran_data []models.TranCertificate
-	var not_found ErrorMessage
+	var tranData []models.TranCertificate
+	var notFound ErrorMessage
 
 	if certType == cert.SERVER {
-		tran_data, err = repo.GetServerCerts(caid, db_req)
-		not_found = errNotFoundValidServerCert
+		tranData, err = repo.GetServerCerts(caid, dbReq)
+		notFound = errNotFoundValidServerCert
 
 	} else if certType == cert.CLIENT {
-		tran_data, err = repo.GetClientCerts(caid, db_req)
-		not_found = errNotFoundValidClientCert
+		tranData, err = repo.GetClientCerts(caid, dbReq)
+		notFound = errNotFoundValidClientCert
 	}
 
 	if err != nil {
@@ -550,12 +550,12 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 		return
 	}
 
-	if len(tran_data) == 0 {
-		c.JSON(http.StatusNotFound, not_found)
+	if len(tranData) == 0 {
+		c.JSON(http.StatusNotFound, notFound)
 		c.Abort()
 		return
 
-	} else if len(tran_data) > 1 {
+	} else if len(tranData) > 1 {
 		c.JSON(http.StatusInternalServerError, errInvalidCertStore)
 		c.Abort()
 		return
@@ -569,7 +569,7 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 			return
 		}
 
-		cert_data, err := cert.ToCertData(password, tran_data[0])
+		certData, err := cert.ToCertData(password, tranData[0])
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -584,7 +584,7 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 
 		switch format {
 		case "pem":
-			pem, err := cert_data.PrivateKey.ToPem()
+			pem, err := certData.PrivateKey.ToPem()
 
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -595,18 +595,18 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 				return
 			}
 
-			content_type := "application/x-pem-file; charset=utf-8"
-			c.Data(http.StatusOK, content_type, []byte(pem))
+			contentType := "application/x-pem-file; charset=utf-8"
+			c.Data(http.StatusOK, contentType, []byte(pem))
 
 		case "pkcs12", "p12", "pfx":
-			default_pin := string([]rune(getNowString())[:10])
-			pin := sanitize(c.DefaultQuery("pin", default_pin))
+			defaultPin := string([]rune(getNowString())[:10])
+			pin := sanitize(c.DefaultQuery("pin", defaultPin))
 
 			if pin == "" {
-				pin = default_pin
+				pin = defaultPin
 			}
 
-			pkcs12, err := cert_data.ToPkcs12(pin)
+			pkcs12, err := certData.ToPkcs12(pin)
 
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -618,14 +618,14 @@ func getCertificate(c *gin.Context, certType cert.CertType) {
 			}
 
 			c.Header("GOCM-REQUEST-PIN", pin)
-			content_type := "application/x-pkcs12"
-			c.Data(http.StatusOK, content_type, pkcs12)
+			contentType := "application/x-pkcs12"
+			c.Data(http.StatusOK, contentType, pkcs12)
 		}
 
 	} else {
-		content_type := "application/pkix-cert; charset=utf-8"
-		byte_data := []byte(tran_data[0].CertData)
-		c.Data(http.StatusOK, content_type, byte_data)
+		contentType := "application/pkix-cert; charset=utf-8"
+		byteData := []byte(tranData[0].CertData)
+		c.Data(http.StatusOK, contentType, byteData)
 	}
 }
 
@@ -657,11 +657,11 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	// CA証明書の状態に関しての確認を行います
 	// -----
-	var ca_count int64 = 0
+	var caCount int64 = 0
 
 	switch certType {
 	case cert.CA:
-		ca_count, err = repo.CountCACert(caid)
+		caCount, err = repo.CountCACert(caid)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, errFailedGetData)
@@ -670,7 +670,7 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 		}
 
 		// CA証明書が1枚も発行されていない場合はCA証明書に関するチェックは不要
-		if ca_count == 0 {
+		if caCount == 0 {
 			break
 		}
 
@@ -710,12 +710,12 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 	var ca *cert.CertData
 
 	// シリアル番号を更新するかどうかを決める変数
-	is_updatable := true
+	isUpdatable := true
 
 	switch certType {
 	case cert.CA:
-		if ca_count == 0 {
-			is_updatable = false
+		if caCount == 0 {
+			isUpdatable = false
 		}
 
 	case cert.SERVER, cert.CLIENT:
@@ -731,7 +731,7 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 		}
 	}
 
-	if is_updatable {
+	if isUpdatable {
 		max, err := repo.GetMaxSerialNumber(caid)
 
 		if err != nil {
@@ -830,7 +830,7 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	// DBへ証明書データを格納します
 	// -----
-	db_newcert, err := newcert.TranCertificate(password)
+	dbNewcert, err := newcert.TranCertificate(password)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -841,7 +841,7 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 		return
 	}
 
-	if err := repo.InsertCert(db_newcert); err != nil {
+	if err := repo.InsertCert(dbNewcert); err != nil {
 		c.JSON(http.StatusInternalServerError, errFailedOperateData)
 		c.Abort()
 		return
@@ -853,7 +853,7 @@ func newCertificate(c *gin.Context, certType cert.CertType) {
 	c.JSON(http.StatusCreated, models.NewCertResponse{
 		CAID:       caid,
 		Serial:     serial,
-		CommonName: db_newcert.CommonName,
+		CommonName: dbNewcert.CommonName,
 	})
 }
 
@@ -887,7 +887,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	switch certType {
 	case cert.CA:
-		ca_count, err := repo.CountCACert(caid)
+		caCount, err := repo.CountCACert(caid)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, errFailedGetData)
@@ -895,7 +895,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 			return
 		}
 
-		if ca_count == 0 || (ca_count != 1 && len(cadata) == 0) {
+		if caCount == 0 || (caCount != 1 && len(cadata) == 0) {
 			c.JSON(http.StatusNotFound, errNotFoundValidCACert)
 			c.Abort()
 			return
@@ -918,37 +918,37 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	// DBから更新すべき証明書のデータを取得します
 	// -----
-	var old_data models.TranCertificate
+	var oldData models.TranCertificate
 
 	switch certType {
 	case cert.CA:
-		old_data = cadata[0]
+		oldData = cadata[0]
 
 	case cert.SERVER, cert.CLIENT:
-		serial_prm := c.Param("serial")
-		old_serial, err := strconv.ParseUint(serial_prm, 10, 0)
+		serialPrm := c.Param("serial")
+		oldSerial, err := strconv.ParseUint(serialPrm, 10, 0)
 
-		if err != nil || old_serial > uint64(^uint32(0)) {
+		if err != nil || oldSerial > uint64(^uint32(0)) {
 			c.JSON(http.StatusBadRequest, errInvalidSerial)
 			c.Abort()
 			return
 		}
 
-		db_req := models.DBRequest{
-			Serial:     uint32(old_serial),
+		dbReq := models.DBRequest{
+			Serial:     uint32(oldSerial),
 			CommonName: "",
 		}
 
 		var data []models.TranCertificate
-		var err_msg ErrorMessage
+		var errMsg ErrorMessage
 
 		if certType == cert.SERVER {
-			data, err = repo.GetServerCerts(caid, db_req)
-			err_msg = errNotFoundValidServerCert
+			data, err = repo.GetServerCerts(caid, dbReq)
+			errMsg = errNotFoundValidServerCert
 
 		} else if certType == cert.CLIENT {
-			data, err = repo.GetClientCerts(caid, db_req)
-			err_msg = errNotFoundValidClientCert
+			data, err = repo.GetClientCerts(caid, dbReq)
+			errMsg = errNotFoundValidClientCert
 		}
 
 		if err != nil {
@@ -958,7 +958,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 		}
 
 		if len(data) == 0 {
-			c.JSON(http.StatusNotFound, err_msg)
+			c.JSON(http.StatusNotFound, errMsg)
 			c.Abort()
 			return
 
@@ -968,7 +968,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 			return
 		}
 
-		old_data = data[0]
+		oldData = data[0]
 	}
 
 	// パスワード確認
@@ -998,20 +998,20 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 		return
 	}
 
-	new_serial := uint32(max) + 1
+	newSerial := uint32(max) + 1
 
 	// -----
 	// 更新後の証明書を発行します
 	// -----
-	var new_cert *cert.CertData
+	var newCert *cert.CertData
 
 	switch certType {
 	case cert.CA:
-		new_cert, err = cacert.UpdateCert(new_serial, nil)
+		newCert, err = cacert.UpdateCert(newSerial, nil)
 
 	case cert.SERVER, cert.CLIENT:
-		var old_cert *cert.CertData
-		old_cert, err = cert.ToCertData(password, old_data)
+		var oldCert *cert.CertData
+		oldCert, err = cert.ToCertData(password, oldData)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -1022,7 +1022,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 			return
 		}
 
-		new_cert, err = old_cert.UpdateCert(new_serial, cacert)
+		newCert, err = oldCert.UpdateCert(newSerial, cacert)
 	}
 
 	if err != nil {
@@ -1037,7 +1037,7 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	// DBへ証明書データを格納します
 	// -----
-	new_data, err := new_cert.TranCertificate(password)
+	newData, err := newCert.TranCertificate(password)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorMessage{
@@ -1049,10 +1049,10 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	}
 
 	// 更新前のデータは破棄扱い
-	old_data.IsRevoked = true
-	old_data.Revoked = getNowString()
+	oldData.IsRevoked = true
+	oldData.Revoked = getNowString()
 
-	if err := repo.UpdateCert(old_data, new_data); err != nil {
+	if err := repo.UpdateCert(oldData, newData); err != nil {
 		c.JSON(http.StatusInternalServerError, errFailedOperateData)
 		c.Abort()
 		return
@@ -1063,8 +1063,8 @@ func updateCertificate(c *gin.Context, certType cert.CertType) {
 	// -----
 	c.JSON(http.StatusCreated, models.NewCertResponse{
 		CAID:       caid,
-		Serial:     new_serial,
-		CommonName: new_data.CommonName,
+		Serial:     newSerial,
+		CommonName: newData.CommonName,
 	})
 }
 
@@ -1245,7 +1245,7 @@ func sanitize(input string) string {
 func getParsedTime(strTime string) time.Time {
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 
-	t, err := time.ParseInLocation(cert.DT_FORMAT, strTime, loc)
+	t, err := time.ParseInLocation(cert.DTFormat, strTime, loc)
 	if err != nil {
 		return time.Date(1970, 1, 1, 9, 0, 0, 0, loc)
 	}
@@ -1255,5 +1255,5 @@ func getParsedTime(strTime string) time.Time {
 
 // 現在時刻を示す文字列を取得します
 func getNowString() string {
-	return time.Now().Format(cert.DT_FORMAT)
+	return time.Now().Format(cert.DTFormat)
 }

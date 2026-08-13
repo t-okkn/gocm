@@ -219,7 +219,7 @@ func (r *Repository) DestroyCA(id string, tca models.TranCAInfo) error {
 
 	// 1. 複数DeleteのためのinterfaceなSliceを準備する
 	// （複数Insert、Updateでも同じ）
-	delete_items := make([]any, len(result))
+	deleteItems := make([]any, len(result))
 
 	for i, v := range result {
 		// 2. Deleteはポインタでないといけないが、直接ポインタで渡すと
@@ -228,10 +228,10 @@ func (r *Repository) DestroyCA(id string, tca models.TranCAInfo) error {
 		item := v
 
 		// 3. interfaceなSliceにポインタを突っ込む
-		delete_items[i] = &item
+		deleteItems[i] = &item
 	}
 
-	count, err := tx.Delete(delete_items...)
+	count, err := tx.Delete(deleteItems...)
 
 	if err != nil {
 		tx.Rollback()
@@ -248,7 +248,7 @@ func (r *Repository) DestroyCA(id string, tca models.TranCAInfo) error {
 		return err
 	}
 
-	if count < int64(len(delete_items)) {
+	if count < int64(len(deleteItems)) {
 		return errors.New("削除した件数が異なっています")
 	}
 
