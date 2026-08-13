@@ -260,7 +260,7 @@
             <!-- 3. タブコンテンツエリア -->
 
             <!-- タブ 1: 期限切れ監査 -->
-            <div x-show="activeTab === 'audit'" x-transition class="space-y-4">
+            <div x-show="activeTab === 'audit'" class="space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-base-100 p-3 sm:p-4 rounded-xl border border-base-200">
                     <div class="text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
                         <span class="font-bold">監査閾値:</span>
@@ -329,7 +329,7 @@
             </div>
 
             <!-- タブ 2: サーバー証明書一覧 -->
-            <div x-show="activeTab === 'server'" x-transition class="space-y-4">
+            <div x-show="activeTab === 'server'" class="space-y-4">
                 <div class="card bg-base-100 shadow-md border border-base-200 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="table table-zebra w-full">
@@ -399,7 +399,7 @@
             </div>
 
             <!-- タブ 3: クライアント証明書一覧 -->
-            <div x-show="activeTab === 'client'" x-transition class="space-y-4">
+            <div x-show="activeTab === 'client'" class="space-y-4">
                 <div class="card bg-base-100 shadow-md border border-base-200 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="table table-zebra w-full">
