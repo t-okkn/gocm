@@ -7,7 +7,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -218,7 +217,7 @@ func registerMysqlTLSConfig(tlsi tlsInfo) error {
 	case "verify-ca", "verify-full":
 		if tlsi.CA != "" {
 			rootCertPool := x509.NewCertPool()
-			pem, err := ioutil.ReadFile(tlsi.CA)
+			pem, err := os.ReadFile(tlsi.CA)
 
 			if err != nil {
 				return err
