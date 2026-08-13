@@ -10,14 +10,28 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"text/template"
 
 	"github.com/BurntSushi/toml"
 	"github.com/go-sql-driver/mysql"
 )
 
+const (
+	envGocmConnectPath string = "GOCM_CONNECT_PATH"
+	configFileName     string = "connect.toml"
+)
+
 //go:embed SQLFiles/*/*.sql
-var	sqlFiles embed.FS
+var sqlFiles embed.FS
+
+// メモリ上に永続化（キャッシュ）するパッケージ変数
+var (
+	cachedDBType string
+	cachedDSN    string
+	loadErr      error
+	configOnce   sync.Once
+)
 
 type connectConfig struct {
 	Type string         `toml:"db_type"`
@@ -40,19 +54,62 @@ type tlsInfo struct {
 	Key     string `toml:"key"`
 }
 
-// configファイルからデータソース名を取得します
-func GetDataSourceName() (string, string, error) {
-	dir := getDirName()
-	if dir == "" {
-		e := errors.New("実行ファイル名の取得に失敗しました")
-		return "", "", e
+// findConnectConfigFile: 設定ファイル connect.toml の存在するパスを順番に探索します
+func findConnectConfigFile() (string, error) {
+	candidates := make([]string, 5)
+	appName := ""
+	exeDir := ""
+
+	if exe, err := os.Executable(); err == nil {
+		appName = filepath.Base(exe)
+		exeDir = filepath.Dir(exe)
 	}
 
-	f := filepath.Join(dir, "connect.toml")
-	var conf connectConfig
+	// 1. バイナリと同じ階層
+	candidates = append(candidates, filepath.Join(exeDir, configFileName))
 
-	if _, err := toml.DecodeFile(f, &conf); err != nil {
-		return "", "", err
+	// 2. 環境変数 GOCM_CONNECT_PATH
+	if envPath := os.Getenv(envGocmConnectPath); envPath != "" {
+		candidates = append(candidates, envPath)
+	}
+
+	// 3. /etc 配下
+	etc := filepath.Join("/etc", appName, configFileName)
+	candidates = append(candidates, etc)
+
+	// 4. /usr/local/etc 配下
+	localEtc := filepath.Join("/usr/local/etc", appName, configFileName)
+	candidates = append(candidates, localEtc)
+
+	for _, p := range candidates {
+		if p == "" {
+			continue
+		}
+
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	err := fmt.Errorf(
+		"設定ファイル (%s) が見つかりませんでした (検索パス: %v)",
+		configFileName, candidates)
+
+	return "", err
+}
+
+// 初回アクセス時のみ connect.toml を読み込み、メモリに永続化
+func initConfigOnce() {
+	configFile, err := findConnectConfigFile()
+	if err != nil {
+		loadErr = err
+		return
+	}
+
+	var conf connectConfig
+	if _, err := toml.DecodeFile(configFile, &conf); err != nil {
+		loadErr = fmt.Errorf("設定ファイル (%s) の読み込みに失敗しました: %w", configFile, err)
+		return
 	}
 
 	var dsn string
@@ -68,7 +125,8 @@ func GetDataSourceName() (string, string, error) {
 
 		if conf.DB.TLS.SSLMode != "" && conf.DB.TLS.SSLMode != "disable" {
 			if err := registerMysqlTLSConfig(conf.DB.TLS); err != nil {
-				return "", "", err
+				loadErr = err
+				return
 			}
 
 			dsn += "?tls=custom"
@@ -76,9 +134,11 @@ func GetDataSourceName() (string, string, error) {
 
 	case "postgres":
 		sslmode := conf.DB.TLS.SSLMode
+
 		if sslmode == "" {
 			sslmode = "disable"
 		}
+
 		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			conf.DB.Server,
 			conf.DB.Port,
@@ -95,14 +155,41 @@ func GetDataSourceName() (string, string, error) {
 				dsn += fmt.Sprintf(" sslcert=%s sslkey=%s", conf.DB.TLS.Cert, conf.DB.TLS.Key)
 			}
 		}
+
+	default:
+		loadErr = fmt.Errorf("未対応のDBタイプです: %s", conf.Type)
+		return
 	}
 
-	return conf.Type, dsn, nil
+	cachedDBType = conf.Type
+	cachedDSN = dsn
 }
 
-// SQLクエリ文を対象ファイルから取得します
+// GetDBType: メモリ上の DB タイプ (mysql / postgres) のみを返します
+func GetDBType() (string, error) {
+	configOnce.Do(initConfigOnce)
+
+	if loadErr != nil {
+		return "", loadErr
+	}
+
+	return cachedDBType, nil
+}
+
+// GetDataSourceName: メモリ上の DB タイプと DSN を返します (DB接続確立用)
+func GetDataSourceName() (string, error) {
+	configOnce.Do(initConfigOnce)
+
+	if loadErr != nil {
+		return "", loadErr
+	}
+
+	return cachedDSN, nil
+}
+
+// GetSQL: DB タイプのみを参照し、埋め込み SQL テンプレートからクエリを生成します
 func GetSQL(name string, req any) string {
-	dbType, _, err := GetDataSourceName()
+	dbType, err := GetDBType()
 	if err != nil {
 		return ""
 	}
@@ -118,16 +205,6 @@ func GetSQL(name string, req any) string {
 	t.Execute(&buf, req)
 
 	return buf.String()
-}
-
-// SQLファイルがあるディレクトリ名を取得します
-func getDirName() string {
-	exe, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-
-	return filepath.Base(exe) + ".sql"
 }
 
 // MySQLの接続情報にTLS情報を付与します

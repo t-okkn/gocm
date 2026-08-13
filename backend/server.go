@@ -1196,12 +1196,13 @@ func getServerCertRequest(
 
 // DBとの接続についての初期処理を行います
 func initDB() *db.Repository {
-	driver, dsn, err := db.GetDataSourceName()
+	dsn, err := db.GetDataSourceName()
 	if err != nil {
 		fmt.Println("E001 :", err)
 		return nil
 	}
 
+	driver, _ := db.GetDBType()
 	var dbmap *gorp.DbMap
 
 	switch driver {
