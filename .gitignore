@@ -30,3 +30,7 @@ bin/
 backend/**/connect.toml
 !backend/**/connect.toml.example
 
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
