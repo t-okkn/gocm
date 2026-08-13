@@ -52,6 +52,8 @@ var (
 // httpHandlerを受け取る関数にそのまま渡せます
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
+	_ = router.SetTrustedProxies([]string{"127.0.0.1", "::1"})
+
 	v1 := router.Group("v1")
 
 	v1.POST("/ca", newCA)
